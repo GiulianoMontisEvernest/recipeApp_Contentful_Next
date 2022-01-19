@@ -4,6 +4,8 @@ import Image from 'next/image';
 import { createClient } from 'contentful';
 import { documentToReactComponents } from '@contentful/rich-text-react-renderer';
 
+import Skeleton from '../../components/Skeleton';
+
 const client = createClient({
   space: process.env.CONTENTFUL_SPACE_ID,
   accessToken: process.env.CONTENTFUL_ACCESS_TOKEN,
@@ -22,7 +24,7 @@ export async function getStaticPaths() {
 
   return {
     paths,
-    fallback: false,
+    fallback: true,
   };
 }
 export async function getStaticProps({ params }) {
@@ -40,16 +42,13 @@ export async function getStaticProps({ params }) {
 }
 
 export default function RecipeDetails({ recipe }) {
-  console.log(recipe);
-  const {
-    title,
-    slug,
-    cookingTime,
-    featuredImage,
-    thumbnail,
-    method,
-    ingredients,
-  } = recipe.fields;
+  // fallback page
+  if (!recipe) return <Skeleton />;
+
+  // normal rendering
+  const { title, cookingTime, featuredImage, method, ingredients } =
+    recipe.fields;
+
   return (
     <div>
       <div className="banner">
