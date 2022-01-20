@@ -1,4 +1,5 @@
 import { createClient } from 'contentful';
+
 //components
 import RecipeCard from '../components/RecipeCard';
 
