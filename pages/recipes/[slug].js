@@ -6,12 +6,13 @@ import { documentToReactComponents } from '@contentful/rich-text-react-renderer'
 
 import Skeleton from '../../components/Skeleton';
 
-const client = createClient({
-  space: process.env.CONTENTFUL_SPACE_ID,
-  accessToken: process.env.CONTENTFUL_ACCESS_TOKEN,
-});
+// const client = createClient({
+//   space: process.env.CONTENTFUL_SPACE_ID,
+//   accessToken: process.env.CONTENTFUL_ACCESS_TOKEN,
+// });
 
 export async function getStaticPaths() {
+  /*
   const res = await client.getEntries({
     content_type: 'recipe',
   });
@@ -26,8 +27,48 @@ export async function getStaticPaths() {
     paths,
     fallback: true,
   };
+  */
+
+  const query = JSON.stringify({
+    query: `
+      query {
+        recipeCollection {
+        items {
+          slug
+          }
+        }
+      }
+    `,
+  });
+
+  const options = {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.CONTENTFUL_ACCESS_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: query,
+  };
+
+  const URL = `https://graphql.contentful.com/content/v1/spaces/${process.env.CONTENTFUL_SPACE_ID}/environments/master`;
+
+  const res = await fetch(URL, options);
+  const { data } = await res.json();
+
+  const paths = data.recipeCollection.items.map((item) => {
+    return {
+      params: { slug: `${item.slug}` },
+    };
+  });
+
+  return {
+    paths,
+    fallback: true,
+  };
 }
+
 export async function getStaticProps({ params }) {
+  /*
   const { items } = await client.getEntries({
     content_type: 'recipe',
     'fields.slug': params.slug,
@@ -48,6 +89,57 @@ export async function getStaticProps({ params }) {
     },
     revalidate: 1, // seconds
   };
+  */
+
+  const query = JSON.stringify({
+    query: `
+      query GetRecipe($slug: String!) {
+        recipeCollection(where: {
+          slug: $slug,
+        },
+        limit: 1
+        ) {
+          items {
+            title
+            cookingTime
+            featuredImage {
+              url
+              width
+              height
+            }
+            method {
+              json
+            }
+            ingredients
+            }
+          }
+      }
+    `,
+    variables: {
+      slug: params.slug,
+    },
+  });
+
+  const options = {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.CONTENTFUL_ACCESS_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: query,
+  };
+
+  const URL = `https://graphql.contentful.com/content/v1/spaces/${process.env.CONTENTFUL_SPACE_ID}/environments/master`;
+
+  const res = await fetch(URL, options);
+  const { data } = await res.json();
+
+  return {
+    props: {
+      recipe: data.recipeCollection.items[0],
+    },
+    revalidate: 1, // seconds
+  };
 }
 
 export default function RecipeDetails({ recipe }) {
@@ -55,16 +147,15 @@ export default function RecipeDetails({ recipe }) {
   if (!recipe) return <Skeleton />;
 
   // normal rendering
-  const { title, cookingTime, featuredImage, method, ingredients } =
-    recipe.fields;
+  const { title, cookingTime, featuredImage, method, ingredients } = recipe;
 
   return (
     <div>
       <div className="banner">
         <Image
-          src={`https:${featuredImage.fields.file.url}`}
-          width={featuredImage.fields.file.details.image.width}
-          height={featuredImage.fields.file.details.image.height}
+          src={featuredImage.url}
+          width={featuredImage.width}
+          height={featuredImage.height}
         />
         <h2>{title}</h2>
       </div>
@@ -79,7 +170,7 @@ export default function RecipeDetails({ recipe }) {
 
       <div className="method">
         <h3>Method:</h3>
-        <div>{documentToReactComponents(method)}</div>
+        <div>{documentToReactComponents(method.json)}</div>
       </div>
 
       <style jsx>{`
